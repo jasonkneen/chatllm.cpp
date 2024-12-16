@@ -1086,7 +1086,7 @@ namespace chatllm
             if (!initial_run)
             {
                 initial_run = true;
-                int past = gen_config.max_length - (int)input_ids.size();
+                int past = transformer->get_k_cache_len() - (int)input_ids.size();
                 if (past < 0) past = 0;
                 CHATLLM_CHECK(before_initial_run(input_ids, gen_config, past)) << "failed to reserve memory.";
             }
@@ -1277,6 +1277,18 @@ namespace chatllm
         Block *get_layer(int index)
         {
             return layers[index];
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            // FIXME: heterogeneous models like Gemma-2
+            int r = INT_MAX;
+            for (auto &layer : layers)
+            {
+                int t = layer->get_k_cache_len();
+                if (r > t) r = t;
+            }
+            return r;
         }
 
         // TODO:

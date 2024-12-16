@@ -171,7 +171,8 @@ namespace chatllm
             return 0;
         }
 
-        virtual size_t get_cache_size(void) const { return 0; }
+        virtual int    get_k_cache_len(void) const { return 0; }    // token number of k cache
+        virtual size_t get_cache_size(void) const { return 0; }     // byte size of k/v cache
         virtual void   set_cache_buffer(BackendBuffer *buf) { }
         virtual size_t read_cache_data(void *buffer, size_t buffer_size) const { return 0; }
         virtual size_t write_cache_data(const void *buffer, size_t buffer_size) { return 0; }
@@ -465,6 +466,7 @@ namespace chatllm
 
             ctx->get_allocator()->alloc(pos);
         }
+
         using Block::forward;
         ggml::tensor *forward(ComputeContext *ctx, ggml::tensor *hidden_states, int n_past) override;
 
@@ -480,6 +482,11 @@ namespace chatllm
             r += query_key_value.get_param_num(effective_only);
             r += dense.get_param_num(effective_only);
             return r;
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return (int)v_pos.size();
         }
 
         size_t get_cache_size(void) const override
@@ -533,6 +540,11 @@ namespace chatllm
             r += post_attention_layernorm.get_param_num(effective_only);
             r += mlp.get_param_num(effective_only);
             return r;
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return attention.get_k_cache_len();
         }
 
         size_t get_cache_size(void) const override
@@ -704,6 +716,11 @@ namespace chatllm
             mlp.set_id(id);
         }
 
+        int get_k_cache_len(void) const override
+        {
+            return attention.get_k_cache_len();
+        }
+
         size_t get_cache_size(void) const override
         {
             return attention.get_cache_size();
@@ -818,6 +835,11 @@ namespace chatllm
             pre_mlp_layernorm.set_id(id);
             mlp.set_id(id);
             post_mlp_layernorm.set_id(id);
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return attention.get_k_cache_len();
         }
 
         size_t get_cache_size(void) const override
@@ -996,6 +1018,11 @@ namespace chatllm
               v_hidden_size(v_hidden_size),
               cache_length(cache_length)
         {
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return cache_length;
         }
 
     protected:
@@ -1187,6 +1214,11 @@ namespace chatllm
             ctx->get_allocator()->alloc(indices);
         }
 
+        int get_k_cache_len(void) const override
+        {
+            return sliding_window_len;
+        }
+
     protected:
         void before_forward(ComputeContext *ctx, const int n_past, const int qlen) override
         {
@@ -1313,6 +1345,11 @@ namespace chatllm
         {
         }
 
+        int get_k_cache_len(void) const override
+        {
+            return sliding_window_len;
+        }
+
     protected:
 
         // output: [heads, qlen, head_size]
@@ -1376,6 +1413,11 @@ namespace chatllm
               indices(ggml::new_tensor_1d(ctx, GGML_TYPE_I32, 1)), // to ensure number of tensors are the same
               cache_offset(0)
         {
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return sliding_window_len;
         }
 
     protected:
@@ -2070,6 +2112,11 @@ namespace chatllm
             r += attention.get_param_num(effective_only);
             r += mlp.get_param_num(effective_only);
             return r;
+        }
+
+        int get_k_cache_len(void) const override
+        {
+            return attention.get_k_cache_len();
         }
 
         size_t get_cache_size(void) const override
